@@ -1,5 +1,5 @@
 
-use Test::More tests => 7;
+use Test::More tests => 8;
 use Borboleta::Mode::Level::Model;
 use Math::Complex;
 { package No::Op;
@@ -29,6 +29,16 @@ eval {
                o2 => { h => 0, w => 0, x => 10, y => 0, vx =>   0, vy => 0, ax => 0, ay => 0 } );
   cmp_ok($tester->intersection_parabola_parabola('o1','o2',10), '==', 1,
          'two bodies 10m apart, one of them moving at 10m/s should meet after 1 second');
+};
+if ($@) {
+  fail($@);
+}
+
+eval {
+  %objects = ( o1 => { h => 0, w => 0, x => 0,  y => 0,  vx =>  10, vy => 10, ax => 0, ay => 0 },
+               o2 => { h => 0, w => 0, x => 10, y => 10, vx =>   0, vy =>  0, ax => 0, ay => 0 } );
+  cmp_ok($tester->intersection_parabola_parabola('o1','o2',10), '==', 1,
+         'two bodies 10m apart, one of them moving at 10m/s in both axis should meet after 1 second');
 };
 if ($@) {
   fail($@);
