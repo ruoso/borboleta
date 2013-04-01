@@ -258,8 +258,14 @@ sub intersection_parabola_parabola {
   # order to properly address the bounding boxes for the collisions,
   my @boundings =
     (
-     0 + ($obj1->{h}/2 + $obj2->{h}/2)*i,
      ($obj1->{w}/2 + $obj2->{w}/2) + 0*i,
+     -($obj1->{w}/2 + $obj2->{w}/2) + 0*i,
+     0 + ($obj1->{h}/2 + $obj2->{h}/2)*i,
+     0 - ($obj1->{h}/2 + $obj2->{h}/2)*i,
+     ($obj1->{w}/2 + $obj2->{w}/2) + ($obj1->{h}/2 + $obj2->{h}/2)*i,
+     ($obj1->{w}/2 + $obj2->{w}/2) - ($obj1->{h}/2 + $obj2->{h}/2)*i,
+     -($obj1->{w}/2 + $obj2->{w}/2) + ($obj1->{h}/2 + $obj2->{h}/2)*i,
+     -($obj1->{w}/2 + $obj2->{w}/2) - ($obj1->{h}/2 + $obj2->{h}/2)*i,
     );
   # we have to make that an inequality instead. And because we can't
   # assume sign and because we also know that this is actually in the
@@ -335,14 +341,15 @@ sub intersection_parabola_parabola {
     }
   } else {
     my @solutions =
-      map { ( ((0 - $v0) + sqrt($v0 ** 2 - 4 * ($acc/2) * ($s0 + $_)))/(2*($acc/2)),
-              ((0 - $v0) - sqrt($v0 ** 2 - 4 * ($acc/2) * ($s0 + $_)))/(2*($acc/2)),
-              ((0 - $v0) + sqrt($v0 ** 2 - 4 * ($acc/2) * ($s0 - $_)))/(2*($acc/2)),
-              ((0 - $v0) - sqrt($v0 ** 2 - 4 * ($acc/2) * ($s0 - $_)))/(2*($acc/2)) ) } @boundings;
+      sort { $a <=> $b }
+        grep { $_ >= 0 && $_ <= $t }
+          map { ( ((0 - $v0) + sqrt($v0 ** 2 - 4 * ($acc/2) * ($s0 + $_)))/(2*($acc/2)),
+                  ((0 - $v0) - sqrt($v0 ** 2 - 4 * ($acc/2) * ($s0 + $_)))/(2*($acc/2)),
+                  ((0 - $v0) + sqrt($v0 ** 2 - 4 * ($acc/2) * ($s0 - $_)))/(2*($acc/2)),
+                  ((0 - $v0) - sqrt($v0 ** 2 - 4 * ($acc/2) * ($s0 - $_)))/(2*($acc/2)) ) } @boundings;
     # again, we know that these are alternating states, so we only
     # need to test one of them, and we also don't care about events
     # outside our time frame
-    @solutions = sort { $a <=> $b } grep { $_ >= 0 && $_ <= $t } @solutions;
     if (@solutions) {
       if (grep { abs($s0) <= $_ } @boundings) {
         warn "cannot start frame colliding.";

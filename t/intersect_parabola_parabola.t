@@ -1,6 +1,7 @@
 
-use Test::More tests => 6;
+use Test::More tests => 7;
 use Borboleta::Mode::Level::Model;
+use Math::Complex;
 { package No::Op;
   sub AUTOLOAD { }
 };
@@ -78,6 +79,16 @@ eval {
                o2 => { h => 1, w =>  1,  x => -0.5,  y =>  -1, vx =>  0, vy => 0, ax => 0, ay =>   0 } );
   cmp_ok($tester->intersection_parabola_parabola('o1','o2',10), '==', sqrt(2),
          'a body in free-fall from 10 m with 10m/s2 acceleation should reach the ground in sqrt(2) seconds, independent of the shape of the second object');
+};
+if ($@) {
+  fail($@);
+}
+
+eval {
+  %objects = ( o1 => { h => 1, w =>  1,  x => 10,  y =>  10, vx =>  0, vy => 0, ax => -10, ay => -10 },
+               o2 => { h => 1, w =>  1,  x => -1,  y =>  -1, vx =>  0, vy => 0, ax => 0,   ay =>   0 } );
+  cmp_ok($tester->intersection_parabola_parabola('o1','o2',10), '==', sqrt(2) + sqrt(2)*i,
+         'body accelerating in both axis from 10m with 10m/s2 should reach the origin in sqrt(2)+sqrt(2)*i');
 };
 if ($@) {
   fail($@);
