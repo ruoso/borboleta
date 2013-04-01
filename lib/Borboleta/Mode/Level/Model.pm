@@ -35,7 +35,7 @@ sub loop {
       $self->{last_tick} = SDL::get_ticks();
     }
     my $this_tick = SDL::get_ticks();
-    my $elapsed = $this_tick - $last_ticks;
+    my $elapsed = $this_tick - $self->{last_ticks};
 
     my $event = $self->{model_q}->dequeue_nb();
     if ($event) {
@@ -126,22 +126,22 @@ sub time_lapse {
       # the game is actually laid down between the y and the z axis (if we
       # were to do a projection of that graphs).
 
-      my $s0 = $object->{x}  + $object->{y}*i;
-      my $v0 = $object->{vx} + $object->{vy}*i;
-      my $a  = $object->{ax} + $object->{ay}*i;
+      my $s0  = $object->{x}  + $object->{y}*i;
+      my $v0  = $object->{vx} + $object->{vy}*i;
+      my $acc = $object->{ax} + $object->{ay}*i;
       # We are going to use the movement equation here.
       # f(x) = s0 + v0*t + (a * (t**2))/2
 
       # We are first going to evaluate it for $dt
-      my $s = $s0 + $v0*$dt + ($a * ($dt ** 2))/2;
+      my $s = $s0 + $v0*$dt + ($acc * ($dt ** 2))/2;
 
       push @all_x, ( $s->Re, $s->Re + $object->{w} );
       push @all_y, ( $s->Im, $s->Im + $object->{h} );
 
       # now we need to find the vertex of the equation using:
       # vertex_x = -b/2a
-      if ($a != 0) { # linear equations have no vertex.
-        my $vertex = (0 - ($v0 * $dt)) / 2*($a/2);
+      if ($acc != 0) { # linear equations have no vertex.
+        my $vertex = (0 - ($v0 * $dt)) / 2*($acc/2);
         # and we need to see if it would be less than $dt (inside this
         # frame time) or not. If it isn't it means that $s0 and $s are
         # sufficient to define the bounding box, otherwise we need to
@@ -149,7 +149,7 @@ sub time_lapse {
         if ($vertex && $vertex > 0 && $vertex < $dt) {
           # The vertex is in this frame, which means that we need to also
           # consider it when defining the bounding box.
-          my $sv = $s0 + $v0*$vertex + ($a * ($vertex ** 2))/2;
+          my $sv = $s0 + $v0*$vertex + ($acc * ($vertex ** 2))/2;
           push @all_x, ( $sv->Re, $sv->Re + $object->{w} );
           push @all_y, ( $sv->Im, $sv->Im + $object->{h} );
         }
@@ -251,13 +251,16 @@ sub intersection_parabola_parabola {
   my $ab  = $obj2->{ax} + $obj2->{ay}*i;
   my $s0  = $s0a - $s0b;
   my $v0  = $v0a - $v0b;
-  my $a   = $aa - $ab;
+  my $acc   = $aa - $ab;
 
   # Now what we need is to find if there are any roots for that
   # equation, and that tells if there is an interesection.  But, in
   # order to properly address the bounding boxes for the collisions,
-  my $bounding =
-    ($obj1->{x}/2 + $obj2->{x}/2) + ($obj1->{y}/2 + $obj2->{y}/2)*i;
+  my @boundings =
+    (
+     0 + ($obj1->{h}/2 + $obj2->{h}/2)*i,
+     ($obj1->{w}/2 + $obj2->{w}/2) + 0*i,
+    );
   # we have to make that an inequality instead. And because we can't
   # assume sign and because we also know that this is actually in the
   # complex plane, we have to use the absolute value in the
@@ -280,7 +283,7 @@ sub intersection_parabola_parabola {
   # as well as when it would end, at the same time as it would respect
   # the bounding boxes.
 
-  if ($a == 0 && $v0 == 0) {
+  if ($acc == 0 && $v0 == 0) {
     if ($s0 == 0) {
       # this is a resting collision
       return 0;
@@ -289,12 +292,13 @@ sub intersection_parabola_parabola {
       warn "inconsistent data, $s0 = 0";
       return;
     }
-  } elsif ($a == 0 && $v0 != 0) {
+  } elsif ($acc == 0 && $v0 != 0) {
     # Linear version
     # t <= (0 - (s0 - bounding))/v0
     # t >= (0 - (s0 + bounding))/v0
-    my ($t1, $t2) = sort ( ((0 - ($s0 - $bounding)) / $v0),
-                           ((0 - ($s0 + $bounding)) / $v0) );
+    my @solutions = map { ( ((0 - ($s0 - $_)) / $v0),
+                            ((0 - ($s0 + $_)) / $v0) ) } (@boundings);
+    my ($t1, $t2) = sort { $a <=> $b } @solutions;
 
     # first of all, if these events happen outside this frame, we
     # really don't care.
@@ -306,7 +310,7 @@ sub intersection_parabola_parabola {
       # need to test the middle section to know if it satisfy between t1
       # and t2 or if it is not coliding between t1 and t2.
       my $midseg = ($t1 + $t2)/2;
-      if (abs($s0 + $v0 * $midseg) <= $bounding) {
+      if (grep { abs($s0 + $v0 * $midseg) <= $_ } @boundings ) {
         # ok, mid segment is the collision, and it collides for the
         # whole interval of [t1,t2].
         if ($t1 < 0) {
@@ -328,40 +332,26 @@ sub intersection_parabola_parabola {
           return $t2;
         }
       }
+    }
   } else {
-    my $discriminant_u = $v0 ** 2 - 4 * $a * ($s0 + $bounding);
-    my $discriminant_l = $v0 ** 2 - 4 * $a * ($s0 - $bounding);
-    if ($discriminant_u <= 0 && $discriminant_l <= 0) {
-      # no significant collision.
-      return
-    } else {
-      # There is, maybe, a collision
-      my @solutions;
-      if ($discriminant_u > 0) {
-        push @solutions, ( ((0 - $v0) + sqrt($discriminant_u))/(2*$a),
-                           ((0 - $v0) - sqrt($discriminant_u))/(2*$a) );
-      }
-      if ($discriminant_l > 0) {
-        push @solutions, ( ((0 - $v0) + sqrt($discriminant_l))/(2*$a),
-                           ((0 - $v0) - sqrt($discriminant_l))/(2*$a) );
-      }
-      # again, we know that these are alternating states, so we only
-      # need to test one of them, and we also don't care about events
-      # outside our time frame
-      @solutions = sort grep { $_ >= 0 && $_ <= $t } @solutions;
-      if (@solutions) {
-        if ($s0 <= $bounding) {
-          warn "cannot start frame colliding.";
-          return
-        } else {
-          return shift @solutions;
-        }
+    my @solutions =
+      map { ( ((0 - $v0) + sqrt($v0 ** 2 - 4 * ($acc/2) * ($s0 + $_)))/(2*($acc/2)),
+              ((0 - $v0) - sqrt($v0 ** 2 - 4 * ($acc/2) * ($s0 + $_)))/(2*($acc/2)),
+              ((0 - $v0) + sqrt($v0 ** 2 - 4 * ($acc/2) * ($s0 - $_)))/(2*($acc/2)),
+              ((0 - $v0) - sqrt($v0 ** 2 - 4 * ($acc/2) * ($s0 - $_)))/(2*($acc/2)) ) } @boundings;
+    # again, we know that these are alternating states, so we only
+    # need to test one of them, and we also don't care about events
+    # outside our time frame
+    @solutions = sort { $a <=> $b } grep { $_ >= 0 && $_ <= $t } @solutions;
+    if (@solutions) {
+      if (grep { abs($s0) <= $_ } @boundings) {
+        warn "cannot start frame colliding.";
+        return
       } else {
-        # everything was outside the time frame.
-        return;
+        return shift @solutions;
       }
     } else {
-      # no collision.
+      # everything was outside the time frame.
       return;
     }
   }
