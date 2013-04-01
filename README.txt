@@ -37,6 +37,10 @@ Each mode is implemented in terms of a Model, a View and a
 Controller. The Model represents the data for the Actor and implements
 the hooks necessary for the "Observer Pattern" to be implemented.
 
+Each mode is started via the controller, which spawns the threads for
+the model and the view, when the game switches mode, the controller
+notifies the view and model thread to stop.
+
 The Model:
 
 The Model works in a separate thread and will receive and respond to
@@ -56,3 +60,4 @@ The Controller:
 
 The controller consumes input events and notify the model in a
 higher-level of the state of the input.
+
