@@ -205,25 +205,8 @@ sub time_lapse {
   foreach my $object_id (keys %overlapping_proximity) {
     my $object_is_moving = exists $self->{objects_with_motion}{$object_id} ? 1 : 0;
     foreach my $other_object_id (keys %{$overlapping_proximity{$object_id}}) {
-      my $other_object_is_moving = exists $self->{objects_with_motion}{$other_object_id} ? 1 : 0;
-      if ($object_is_moving && $other_object_is_moving) {
-        # Both objects are moving
-        if (my $toi = $self->intersection_parabola_parabola($object_id, $other_object_id, $dt)) {
-          push @collisions, [ $toi, $object_id, $other_object_id ];
-        }
-      } elsif ($object_is_moving) {
-        # first one is moving, second is static
-        if (my $toi = $self->intersection_parabola_rectangle($object_id, $other_object_id, $dt)) {
-          push @collisions, [ $toi, $object_id, $other_object_id ];
-        }
-      } elsif ($other_object_is_moving) {
-        # second is moving, first is static
-        if (my $toi = $self->intersection_parabola_rectangle($other_object_id, $object_id, $dt)) {
-          push @collisions, [ $toi, $object_id, $other_object_id ];
-        }
-      } else {
-        # what?
-        warn "shouldn't be here."
+      if (my $toi = $self->intersection_parabola_parabola($object_id, $other_object_id, $dt)) {
+        push @collisions, [ $toi, $object_id, $other_object_id ];
       }
     }
   }
@@ -258,14 +241,10 @@ sub intersection_parabola_parabola {
   # order to properly address the bounding boxes for the collisions,
   my @boundings =
     (
-     ($obj1->{w}/2 + $obj2->{w}/2) + 0*i,
-     -($obj1->{w}/2 + $obj2->{w}/2) + 0*i,
-     0 + ($obj1->{h}/2 + $obj2->{h}/2)*i,
-     0 - ($obj1->{h}/2 + $obj2->{h}/2)*i,
      ($obj1->{w}/2 + $obj2->{w}/2) + ($obj1->{h}/2 + $obj2->{h}/2)*i,
      ($obj1->{w}/2 + $obj2->{w}/2) - ($obj1->{h}/2 + $obj2->{h}/2)*i,
-     -($obj1->{w}/2 + $obj2->{w}/2) + ($obj1->{h}/2 + $obj2->{h}/2)*i,
-     -($obj1->{w}/2 + $obj2->{w}/2) - ($obj1->{h}/2 + $obj2->{h}/2)*i,
+     ($obj1->{w}/2 + $obj2->{w}/2) + 0*i,
+     0 + ($obj1->{h}/2 + $obj2->{h}/2)*i,
     );
   # we have to make that an inequality instead. And because we can't
   # assume sign and because we also know that this is actually in the
@@ -343,10 +322,13 @@ sub intersection_parabola_parabola {
     my @solutions =
       sort { $a <=> $b }
         grep { $_ >= 0 && $_ <= $t }
-          map { ( ((0 - $v0) + sqrt($v0 ** 2 - 4 * ($acc/2) * ($s0 + $_)))/(2*($acc/2)),
-                  ((0 - $v0) - sqrt($v0 ** 2 - 4 * ($acc/2) * ($s0 + $_)))/(2*($acc/2)),
-                  ((0 - $v0) + sqrt($v0 ** 2 - 4 * ($acc/2) * ($s0 - $_)))/(2*($acc/2)),
-                  ((0 - $v0) - sqrt($v0 ** 2 - 4 * ($acc/2) * ($s0 - $_)))/(2*($acc/2)) ) } @boundings;
+          map { my $s1 = ((0 - $v0) - sqrt($_))/(2*($acc/2));
+                my $s2 = ((0 - $v0) + sqrt($_))/(2*($acc/2));
+                ($s1, $s2) }
+            map { my $d1 = $v0 ** 2 - 4 * ($acc/2) * ($s0 + $_);
+                  my $d2 = $v0 ** 2 - 4 * ($acc/2) * ($s0 - $_);
+                  ($d1, $d2) }
+              @boundings;
     # again, we know that these are alternating states, so we only
     # need to test one of them, and we also don't care about events
     # outside our time frame
@@ -355,7 +337,8 @@ sub intersection_parabola_parabola {
         warn "cannot start frame colliding.";
         return
       } else {
-        return shift @solutions;
+        # time is only real, we do't really care about the imaginary part
+        return (shift @solutions)->Re;
       }
     } else {
       # everything was outside the time frame.

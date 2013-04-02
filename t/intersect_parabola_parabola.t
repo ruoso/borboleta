@@ -1,5 +1,5 @@
 
-use Test::More tests => 8;
+use Test::More tests => 14;
 use Borboleta::Mode::Level::Model;
 use Math::Complex;
 { package No::Op;
@@ -94,11 +94,74 @@ if ($@) {
   fail($@);
 }
 
+
+eval {
+  %objects = ( o1 => { h => 1, w =>  1,  x =>  10,  y => -0.5, vx =>  0, vy => 0, ax => -10, ay => 0 },
+               o2 => { h => 1, w =>  1,  x =>  -1,  y => -0.5, vx =>  0, vy => 0, ax =>   0, ay => 0 } );
+  cmp_ok($tester->intersection_parabola_parabola('o1','o2',10) . '', 'eq', sqrt(2) . '',
+         'a body in free-fall from 10 m with 10m/s2 acceleation should reach the ground in sqrt(2) seconds, independent of the shape of the second object');
+};
+if ($@) {
+  fail($@);
+}
+
 eval {
   %objects = ( o1 => { h => 1, w =>  1,  x => 10,  y =>  10, vx =>  0, vy => 0, ax => -10, ay => -10 },
                o2 => { h => 1, w =>  1,  x => -1,  y =>  -1, vx =>  0, vy => 0, ax => 0,   ay =>   0 } );
-  cmp_ok($tester->intersection_parabola_parabola('o1','o2',10), '==', sqrt(2) + sqrt(2)*i,
-         'body accelerating in both axis from 10m with 10m/s2 should reach the origin in sqrt(2)+sqrt(2)*i');
+  cmp_ok($tester->intersection_parabola_parabola('o1','o2',10), '==', sqrt(2),
+         'body accelerating in both axis from 10m with 10m/s2 should also reach the origin in sqrt(2) seconds');
+};
+if ($@) {
+  fail($@);
+}
+
+
+eval {
+  %objects = ( o1 => { h => 1, w =>   1,  x => 11,  y =>  0, vx =>  0, vy => 0, ax => -5, ay =>    0 },
+               o2 => { h => 1, w =>   2,  x => -1,  y =>  0, vx =>  0, vy => 0, ax =>  5,   ay =>   0 } );
+  cmp_ok($tester->intersection_parabola_parabola('o1','o2',10).'', '==', sqrt(2).'',
+         'body accelerating towards each other');
+};
+if ($@) {
+  fail($@);
+}
+
+eval {
+  %objects = ( o1 => { h => 1, w =>   1,  x => 0,  y =>  10, vx =>  0, vy => 0, ax => 0, ay =>   -5 },
+               o2 => { h => 1, w =>   1,  x => 0,  y =>  -1, vx =>  0, vy => 0, ax => 0, ay =>    5 } );
+  cmp_ok($tester->intersection_parabola_parabola('o1','o2',10).'', '==', sqrt(2).'',
+         'body accelerating towards each other');
+};
+if ($@) {
+  fail($@);
+}
+
+eval {
+  %objects = ( o1 => { h => 1, w =>   1,  x => 10,  y =>  10, vx =>  0, vy => 0, ax => -5, ay =>   -5 },
+               o2 => { h => 1, w =>   1,  x => -1,  y =>  -1, vx =>  0, vy => 0, ax =>  5, ay =>    5 } );
+  cmp_ok($tester->intersection_parabola_parabola('o1','o2',10).'', '==', sqrt(2).'',
+         'body accelerating towards each other in both axis');
+};
+if ($@) {
+  fail($@);
+}
+
+
+eval {
+  %objects = ( o1 => { h => 1, w =>   1,  x => 10,  y =>  10, vx =>  0, vy => 0, ax => -10, ay =>    0 },
+               o2 => { h => 10, w =>   1,  x => -1,  y =>  -10, vx =>  0, vy => 0, ax => 0,   ay =>   0 } );
+  cmp_ok($tester->intersection_parabola_parabola('o1','o2',10), '==', sqrt(2),
+         'body accelerating in both axis from 10m with 10m/s2,5m/s2 should also reach the origin in sqrt(2) seconds');
+};
+if ($@) {
+  fail($@);
+}
+
+eval {
+  %objects = ( o1 => { h => 1, w =>  1,  x =>  0,  y =>  10, vx =>  0, vy => 0, ax => 0,   ay =>  -10 },
+               o2 => { h => 10, w =>  10,  x => -10,  y =>  -10, vx =>  0, vy => 0, ax => 0,   ay =>   0 } );
+  cmp_ok($tester->intersection_parabola_parabola('o1','o2',10), '==', sqrt(2),
+         'body accelerating in both axis from 10m with 5m/s2,10m/s2 should also reach the origin in sqrt(2) seconds');
 };
 if ($@) {
   fail($@);
